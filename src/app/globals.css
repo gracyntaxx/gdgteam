@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* AWS Builder Center Token Palette from DESIGN.md */
+  --bg-primary: #16191f;
+  --bg-surface: #ffffff;
+  --bg-panel: #1b222d;
+  --bg-dark: #0f141a;
+  --text-primary: #ffffff;
+  --text-secondary: #687078;
+  --text-muted: #8c8c94;
+  --brand-secondary: #ff9900;
+  --brand-accent: #7300e5;
+  --neutral-border: #232b37;
+  --neutral-border-light: #eaeded;
+  --neutral-border-muted: #343d4d;
+}
+
+@layer base {
+  body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: "Amazon Ember", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Custom scrollbars matching AWS Builder Center dark console */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #16191f;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #232b37;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #343d4d;
+}
+
+/* Hide scrollbar for clean chip trays */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
