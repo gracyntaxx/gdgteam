@@ -6,8 +6,83 @@
 **Project Name:** WORLDCRAFT
 **Project Category:** AI, Computer Vision, Spatial Intelligence, 3D Reconstruction, Interior Design
 **Target Users:** Architects, interior designers, homeowners, tenants, renovators, and people planning new homes
-**Technology Stack:** To be determined following technical feasibility research
-**Project Stage:** Requirements Definition and Technical Feasibility Assessment
+**Technology Stack:** Next.js/React/TypeScript (frontend, recommended); Tailwind CSS/shadcn-ui (UI, recommended); Three.js/React Three Fiber (3D viewer and scene interaction, recommended); Python/FastAPI (AI and geometry backend, recommended); PyTorch with PURE Pi3 (experimental reconstruction); Ultralytics YOLO11-seg (experimental object segmentation); Google Colab NVIDIA Tesla T4 (temporary inference environment); Gemini API (structured natural-language interpretation, proposed); Trimesh and deterministic Python geometry utilities (planned); Supabase/PostgreSQL (persistence, proposed)
+**Project Stage:** Prototype Development — initial two-image 3D reconstruction demonstrated; spatial intelligence and application integration pending
+
+---
+
+## Current Implementation Status (31 October 2026)
+
+This section records the experiments completed to date and separates demonstrated prototype behaviour from recommended architecture and unimplemented product requirements. A successful model experiment must not be interpreted as a completed application feature.
+
+### Demonstrated and tested
+
+**Reconstruction with PURE Pi3**
+
+- PURE Pi3 was loaded with PyTorch on a Google Colab NVIDIA Tesla T4 GPU.
+- The Pi3 checkpoint was downloaded from `FunnyGuy525/RefinedModel` at revision `45b24b6ec0963003281189455a2e04d517634133`; its SHA256 checksum was verified in the earlier setup.
+- The current experiment uses **two ordered photographs of the same room**, processed with `PUREImageProcessor.images()`. This is not yet a user-facing upload workflow or a video pipeline.
+- A reconstruction run completed and generated `preview.glb`, `points.ply`, `prediction.npz`, camera information (`camera_poses.txt` and `cameras.npz`), depth output, masks, metadata, and a reconstruction archive.
+- The inspected `preview.glb` contains one point-cloud geometry with approximately 150,000 coloured vertices.
+- `prediction.npz` exposes `images`, `points`, `local_points`, `camera_poses`, `xy`, and `depth`. The `points` array has shape `(2, 294, 518, 3)` and the camera-pose array has shape `(2, 4, 4)`.
+- A numerical check confirmed, for both views, that the returned `points` equal the corresponding `local_points` transformed by the supplied rotation and translation (`points = R × local_points + t`) under the tested convention.
+
+**Object detection and segmentation**
+
+- Ultralytics YOLO11 object detection (`yolo11n.pt`) was run on both input photographs.
+- YOLO11 instance segmentation (`yolo11n-seg.pt`) was run on both photographs and produced three masks for the first image and six for the second in the recorded experiment.
+- Detected categories included beds, chairs, a couch, a dining table, a bowl, a TV, and a bird. Some detections had low confidence or were likely false positives; the current model's COCO classes do not cover every required room component.
+- Segmentation masks were resized from YOLO's 448 × 640 output to PURE's 294 × 518 point-map dimensions as an initial experiment.
+
+**Experimental 2D-to-3D association and semantic export**
+
+- Segmentation masks were applied to the corresponding per-pixel PURE `points` arrays to extract preliminary object point sets and calculate median coordinate estimates.
+- A preliminary `worldcraft_semantic.glb` was exported by combining the point arrays from both views and assigning class colours to mask-selected points. The export contains 304,584 vertices (the two 294 × 518 point maps combined).
+- This proves that a semantic-colour export can be generated from the current experimental data. It does **not** prove accurate pixel registration, correct object boundaries, duplicate-free multi-view fusion, or a unified room coordinate frame.
+
+### Important findings and unresolved technical risks
+
+- The GLB preview and the full PURE `points` array are not one-to-one point lists: the GLB has approximately 150,000 vertices, while the two PURE point maps contain 304,584 entries.
+- A nearest-neighbour comparison between GLB vertices and flattened PURE points found only 13.73% within 0.05 coordinate units, 26.99% within 0.10, 48.64% within 0.20, and 77.38% within 0.50. Therefore, nearest-neighbour transfer is not currently reliable enough to assign semantic labels to the original GLB.
+- The semantic export currently combines both view point maps without verified cross-view registration or duplicate removal. It may contain duplicated surfaces, inconsistent point density, and reconstruction distortions.
+- Resizing segmentation masks to the point-map dimensions is only a provisional alignment approximation. The two model pipelines may use different resizing, cropping, padding, or image-coordinate transforms. Exact preprocessing correspondence must be recovered and applied before object coordinates are treated as reliable.
+- The coordinate-transform check establishes the tested `local_points` to `points` relationship; it does **not** independently establish that both camera views are registered in a consistent shared room frame.
+- The current point cloud is not a watertight room mesh or a collection of individually editable furniture assets. Object masks and point clusters are not yet persistent scene objects.
+- Coordinates are model-relative and have not been calibrated to metres. Do not label them as physical dimensions or use them for safety/accessibility clearance checks until a reference measurement and validated scale/orientation procedure are available.
+- Object dimensions, orientations, room boundaries, walls, floors, doors, windows, support relationships, and object-to-object relationships have not yet been reliably extracted.
+- The semantic GLB is an experimental visualization artifact, not an accepted scene representation and not a validated geometric input for collision or pathway checks.
+- No WORLDCRAFT scene graph, deterministic spatial validator, natural-language edit workflow, project persistence, or browser-based 3D editor has been implemented yet.
+- Google Colab is a temporary development/inference environment. Runtime availability, storage persistence, quotas, and access are not production guarantees.
+- Video and floor-plan processing remain requirements in the SRS but are not part of the demonstrated workflow.
+
+### Recommended technology stack and implementation status
+
+The following is the recommended architecture after the feasibility experiments. Items marked recommended or proposed are decisions for implementation, not completed integrations.
+
+| Layer | Technology | Status |
+| --- | --- | --- |
+| Frontend application | Next.js, React, TypeScript | Recommended; not implemented |
+| UI styling/components | Tailwind CSS, shadcn/ui | Recommended; not implemented |
+| 3D viewer and interaction | Three.js, React Three Fiber | Recommended; not integrated |
+| AI and geometry backend | Python, FastAPI | Recommended; standalone API not implemented |
+| Reconstruction model | PURE Pi3 | Loaded and tested in Colab |
+| Object detection/segmentation | Ultralytics YOLO11 / YOLO11-seg | Tested on two photographs; class coverage and accuracy require evaluation |
+| Deep-learning runtime | PyTorch | Tested on CUDA |
+| Temporary inference hardware | Google Colab NVIDIA Tesla T4 | Tested; not production infrastructure |
+| Image and numerical processing | PUREImageProcessor, NumPy, Pillow, OpenCV | Used in experiments |
+| 3D output | GLB point-cloud preview, PLY point cloud | Generated and inspected |
+| 3D geometry utilities | Trimesh | Installed and used to inspect point-cloud artifacts; scene editing/validation integration pending |
+| Scene representation | Versioned application-level JSON schema | Next implementation priority; not yet implemented |
+| Natural-language interpretation | Gemini API producing structured edit requests | Proposed; not integrated |
+| Geometric validation | Deterministic Python geometry rules, with Trimesh and suitable geometry libraries | Planned; not implemented |
+| Persistence | Supabase/PostgreSQL | Proposed; not integrated |
+
+**Backend architecture decision:** Use Python/FastAPI for the AI-processing and geometry service so that PURE, YOLO, NumPy, and geometry code can be reused directly. A separate Node.js/Express backend is not currently recommended for the prototype because it would add another service boundary without a demonstrated need. Next.js can provide the web application layer; a separate backend can be reconsidered if later requirements justify it.
+
+### Required integration principle
+
+All model outputs must be normalized into a versioned WORLDCRAFT scene schema before they are consumed by the renderer, language model, or validator. Model-specific outputs must remain behind adapters. The schema should record coordinate-system definition, units, object IDs and types, geometry references, dimensions and transforms where known, relationships, confidence, provenance, uncertainty, constraints, and validation results. Unknown values must remain explicitly unknown rather than being fabricated.
+
 
 ---
 
@@ -45,19 +120,28 @@ The system shall aim to:
 6. Validate proposed modifications against geometric and spatial constraints.
 7. Provide AI-assisted interior design recommendations based on color harmony, furniture arrangement, circulation, and the user's preferences.
 8. Identify potential accessibility and safety concerns and recommend possible improvements.
-9. Generate two alternative interior design concepts for a selected room if the user asks for room redesign inpirations.
+9. Generate two alternative interior design concepts for a selected room if the user asks for room redesign inspirations.
 10. Support budget-conscious renovation through cost estimation and product recommendations.
 11. Enable users to explore furniture and home improvement products available through participating businesses.
 12. Evaluate reconstruction quality, spatial reasoning, geometric consistency, and constraint satisfaction.
 
 ## 1.4 Scope
 
-### Included in the initial product scope
+### Product scope
 
-- Image-based room reconstruction.
+The broader product is intended to support the capabilities listed below. The currently demonstrated prototype is narrower: it reconstructs a scene from two ordered photographs of the same room.
+
+### Current prototype scope
+
+- Two-image room reconstruction using PURE Pi3.
+- Export of a GLB point-cloud preview and PLY point cloud.
+- Temporary inference using a Google Colab Tesla T4 GPU.
+
+### Planned product capabilities (not yet implemented)
+
 - Short-video-based room reconstruction.
 - Architectural floor-plan input where supported by the selected processing pipeline.
-- Approximate 3D room and object representation. but if user enters relative measurements, it shows the scale.
+- Approximate 3D room representation. If a user supplies a known reference measurement, the application may use it to establish or adjust scene scale through a validated calibration process.
 - Editable scene generation.
 - Object selection, movement, rotation, and repositioning.
 - Text-based and voice-based scene editing.
@@ -141,7 +225,7 @@ Users can explore layouts that may improve movement, reachability, circulation, 
 
 # 3. System Overview
 
-WORLDCRAFT shall consist of logically separated components. Their implementation technologies will be selected after feasibility research.
+WORLDCRAFT shall consist of logically separated components. Based on the initial feasibility experiments, the recommended prototype architecture is a Next.js/React/TypeScript web application, a Python/FastAPI AI and geometry service, and a Three.js/React Three Fiber scene viewer. These are implementation recommendations; they are not yet integrated.
 
 ## 3.1 Proposed logical architecture
 
@@ -181,13 +265,13 @@ The reconstruction pipeline shall estimate or infer:
 - Object positions and orientations.
 - Camera-relative and room-relative spatial information.
 
-The implementation may use one model for both images and videos or separate image and video processing pipelines.
+The current experimental image pipeline uses PURE Pi3 and accepts two ordered photographs of the same room. It produces point-cloud geometry and related reconstruction artifacts. YOLO11-seg has separately been tested for object masks. The two outputs have not yet been registered into a validated, duplicate-free semantic room model. Video and floor-plan pipelines remain unimplemented product extensions. The implementation may use one model for multiple input types or separate processing pipelines.
 
 ### Component 4: Scene Representation
 
 Responsible for maintaining a structured representation of the reconstructed environment.
 
-The scene representation shall contain:
+The application-level scene representation shall be versioned and independent of any model's native output format. It shall contain:
 
 - Room boundaries.
 - Object identifiers and types.
@@ -933,7 +1017,7 @@ No specific inference time is guaranteed at this stage because it depends on the
 
 The application should support deployment to a web-accessible environment and should not require users to own high-performance GPUs.
 
-Where feasible, computationally intensive inference shall be performed by an external hosted service.
+Where feasible, computationally intensive inference shall be performed by an external hosted service. During the prototype, PURE Pi3 inference is being run in Google Colab on a Tesla T4 GPU; this is a temporary development arrangement and may disconnect or become unavailable when the Colab session ends.
 
 The final implementation shall document any limitations caused by free inference quotas, rate limits, service availability, or model licensing.
 
@@ -1102,30 +1186,42 @@ Evaluation should distinguish between failures caused by the reconstruction mode
 
 # 11. Proposed Implementation Phases
 
-## Phase 1: Technical Feasibility
+## Phase 1: Technical Feasibility — Partially Completed
 
-- Research hosted image-to-3D and video-to-3D models.
-- Investigate free inference endpoints and their limitations.
-- Test whether outputs include usable geometry, object coordinates, and scene relationships.
-- Compare available 3D rendering and scene manipulation technologies.
-- Select a common internal scene representation.
-- Establish the feasibility of the proposed integration.
+- Research candidate image-to-3D and video-to-3D models and their input/output limitations.
+- Test PURE Pi3 with two ordered room photographs on a Colab Tesla T4.
+- Verify the tested checkpoint and inspect generated GLB, PLY, depth, camera-pose, and prediction outputs.
+- Test YOLO11 detection and YOLO11-seg masks on the same photographs.
+- Inspect the relationship between PURE's `local_points`, `points`, and `camera_poses`.
+- Compare the exported GLB point cloud with the full PURE point maps; record that the point lists are not one-to-one.
+- Document unresolved mask registration, multi-view alignment, metric scale, and semantic-fusion risks.
+- Recommend Next.js/React/TypeScript, React Three Fiber, and Python/FastAPI for the prototype architecture.
+- Define the versioned internal scene schema before integrating additional models or application components.
 
-**Deliverable:** A documented technology decision supported by small working experiments.
+**Status:** Two-image reconstruction, object detection, instance segmentation, point extraction experiments, and preliminary semantic GLB export have been demonstrated. Reliable semantic fusion, metric scale, video/floor-plan processing, a web application, and downstream spatial reasoning remain open.
 
-## Phase 2: Core Reconstruction
+**Deliverable:** A documented technology decision supported by experiments, limitations, and a clear integration contract.
 
-- Implement image upload.
-- Implement at least one working reconstruction pipeline.
-- Generate an editable 3D room scene.
-- Represent objects and their positions.
-- Display the result in the web application.
+## Phase 2: Core Reconstruction — In Progress
 
-**Deliverable:** A room can be reconstructed and inspected in 3D.
+- Implement image upload and input validation in the web application.
+- Wrap PURE Pi3 in a Python/FastAPI model adapter with explicit input/output validation.
+- Wrap YOLO11-seg in a separate model adapter and retain exact preprocessing transforms for mask-to-image alignment.
+- Register observations from multiple views into a consistent room coordinate frame and associate repeated detections without duplicating physical objects.
+- Establish approximate scale using user-provided reference measurements and a validated calibration procedure.
+- Normalize reconstruction and object observations into the versioned WORLDCRAFT scene schema.
+- Represent object IDs, types, geometry references, positions, orientations, dimensions when supported, confidence, provenance, and uncertainty.
+- Integrate a browser-based 3D viewer using Three.js/React Three Fiber.
+- Clearly distinguish point-cloud visualization from editable object geometry.
+
+**Status:** PURE Pi3 inference and artifact generation work in Colab; YOLO11 detection and segmentation have been tested; preliminary mask-selected 3D point extraction and semantic GLB export have been executed. Exact mask registration, cross-view alignment, duplicate association, metric scale, structured scene objects, the FastAPI service, upload flow, and web viewer are not yet implemented.
+
+**Deliverable:** A room can be reconstructed and inspected in the web application, with a structured scene representation and clearly labelled estimates and limitations.
 
 ## Phase 3: Spatial Intelligence
 
-- Introduce structured scene data.
+- Finalize and version the application-level scene JSON schema before downstream integration.
+- Introduce persistent object IDs and validated references between room geometry, objects, assets, and relationships.
 - Implement object selection and transformations.
 - Add collision detection and room-boundary validation.
 - Add support relationships where feasible.
@@ -1136,8 +1232,9 @@ Evaluation should distinguish between failures caused by the reconstruction mode
 ## Phase 4: Natural-Language Editing
 
 - Connect a language model for instruction interpretation.
-- Convert instructions into structured edit requests.
-- Validate requests before applying them.
+- Convert instructions into structured edit requests using a language model adapter.
+- Resolve object references and calculate candidate transforms in the scene engine.
+- Validate requests with deterministic geometry rules before applying them.
 - Update the scene and rerun geometric checks.
 - Add clarification and invalid-edit handling.
 
@@ -1177,7 +1274,7 @@ Evaluation should distinguish between failures caused by the reconstruction mode
 
 # 12. Recommended Minimum Demonstration
 
-The minimum successful WORLDCRAFT demonstration should show the following sequence:
+The minimum successful WORLDCRAFT demonstration should show the following sequence. The current Colab experiments do not yet satisfy this end-to-end demonstration; the list below remains the target acceptance flow:
 
 1. Upload a room image.
 2. Generate an editable 3D room scene.
@@ -1195,6 +1292,12 @@ The minimum successful WORLDCRAFT demonstration should show the following sequen
 A short-video reconstruction and product recommendation can be added as extensions if the chosen models and available development time permit them.
 
 The team should prioritize the end-to-end reconstruction, spatial validation, and natural-language editing pipeline before investing heavily in advanced rendering or commercial features.
+
+---
+
+## Implementation boundary
+
+The current prototype demonstrates model-level feasibility experiments, not the complete WORLDCRAFT product. In particular, a point cloud or colourized semantic point cloud is not equivalent to an editable scene graph. Object coordinates, dimensions, scale, cross-view identity, and spatial relationships must be validated before they are used for geometric, accessibility, or safety decisions. All such decisions must be produced by deterministic checks over sufficiently reliable geometry; language-model output may interpret requests or explain results but must not certify geometric validity.
 
 ---
 
