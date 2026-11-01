@@ -72,5 +72,6 @@ class ColabReconstructionAdapter(ReconstructionAdapter):
             payload = response.json()
 
         # Normalize Colab output into WorldcraftScene
-        # Colab server should already return this format; validate defensively
-        return WorldcraftScene.model_validate(payload)
+        # Colab server returns either the scene dict directly or {'scene': {...}}
+        scene_data = payload.get("scene", payload)
+        return WorldcraftScene.model_validate(scene_data)

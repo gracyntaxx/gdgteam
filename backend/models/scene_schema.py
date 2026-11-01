@@ -6,7 +6,7 @@ All model outputs must be normalized into this schema.
 
 from __future__ import annotations
 from typing import Optional, List, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 import uuid
 from datetime import datetime, timezone
 
@@ -42,12 +42,14 @@ class RoomDimensions(BaseModel):
 
 
 class RoomSpec(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     type: str = "living_room"
     dimensions: RoomDimensions
-    wall_color: Optional[str] = "#202632"
-    accent_wall_color: Optional[str] = "#1d232e"
-    floor_color: Optional[str] = "#36302a"
-    ceiling_color: Optional[str] = "#1a1e26"
+    wall_color: Optional[str] = Field(default="#202632", alias="wallColor")
+    accent_wall_color: Optional[str] = Field(default="#1d232e", alias="accentWallColor")
+    floor_color: Optional[str] = Field(default="#36302a", alias="floorColor")
+    ceiling_color: Optional[str] = Field(default="#1a1e26", alias="ceilingColor")
 
 
 class SpatialRelationship(BaseModel):
@@ -76,10 +78,12 @@ class SceneConstraint(BaseModel):
 
 class ValidationResult(BaseModel):
     """FR-37, FR-38 — result of geometry/constraint checks."""
+    model_config = ConfigDict(populate_by_name=True)
+
     collisions: int = 0
-    clearance_ok: bool = True
-    pathway_clear: bool = True
-    boundary_ok: bool = True
+    clearance_ok: bool = Field(default=True, alias="clearanceOk")
+    pathway_clear: bool = Field(default=True, alias="pathwayClear")
+    boundary_ok: bool = Field(default=True, alias="boundaryOk")
     violations: List[ViolationDetail] = Field(default_factory=list)
     messages: List[str] = Field(default_factory=list)
 
@@ -126,6 +130,8 @@ class WorldcraftScene(BaseModel):
     Top-level versioned scene representation.
     All adapters must output this schema; all consumers read only this schema.
     """
+    model_config = ConfigDict(populate_by_name=True)
+
     scene_id: str = Field(default_factory=lambda: f"scene-{uuid.uuid4().hex[:12]}")
     name: str = "Untitled Room"
     schema_version: int = 1
@@ -147,7 +153,7 @@ class WorldcraftScene(BaseModel):
     timestamp: str = Field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
-    prompt_history: List[str] = Field(default_factory=list)
+    prompt_history: List[str] = Field(default_factory=list, alias="promptHistory")
     input_type: Optional[Literal["image", "video", "floor_plan", "manual"]] = None
     reconstruction_model: Optional[str] = None   # "pure_pi3_mock", "pure_pi3_colab"
 
