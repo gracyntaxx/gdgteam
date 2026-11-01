@@ -26,6 +26,18 @@ yarn-error.log*
 
 # Local env files
 .env*.local
+.env
+
+# Python Backend
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/venv/
+backend/.venv/
+backend/storage/uploads/*
+!backend/storage/uploads/.gitkeep
+backend/storage/projects/*
+!backend/storage/projects/.gitkeep
 
 # Vercel
 .vercel
